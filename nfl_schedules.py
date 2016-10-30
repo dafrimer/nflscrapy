@@ -90,9 +90,16 @@ def get_schedule_soup(year, week, season_type = 2):
 
     print(week,len(games_data))
 
-import pyodbc
+import pymysql
 def execute_sql(games_data):
-    pyodbc.
+    global creds
+    with open('./mysqlaccess.txt') as f:
+        acc = f.read()
+        creds = dict([a.split('=') for a in acc.split('\n')])
+
+    cxn = pymysql.connect(host=creds['host'], user=creds['user'],
+                        password=creds['pw'])
+
 
 
 for i in REGULAR_SEASON_WEEKS:
