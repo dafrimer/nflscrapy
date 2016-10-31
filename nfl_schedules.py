@@ -2,15 +2,18 @@ from __future__ import print_function
 
 # http://www.espn.com/nfl/schedule
 
-
+import logging
 import urllib2
 from bs4 import BeautifulSoup
 import re
 from lxml import etree
 import pandas as pd
-from stand_proc import simpconvert_to_str
+from pip._vendor.distlib import database
+
+from stand_proc import simpconvert_to_str, NFL_Schedule_Error
 from collections import defaultdict
 import pandas as pd
+import datetime
 import re
 
 
@@ -25,11 +28,16 @@ PRESEASON_WEEKS = range(2,6) # weeks 2-5 (don't include HOF weekend)
 #http://www.espn.com/nfl/schedule/_/seasontype/{season_type}/year/{year}/week/{week}
 
 
-
+logging.basicConfig(filename='./nfl_schedule_{}.log'.format(datetime.datetime.strftime(datetime.datetime.now(),'%Y%m%d')),level=logging.DEBUG)
 def get_schedule_soup(year, week, season_type = 2):
 
     geturl = 'http://www.espn.com/nfl/schedule/_/seasontype/{season_type}/year/{year}/week/{week}'.format(**{'year':year,'week':week,'season_type':season_type})
-    r = urllib2.urlopen(geturl).read()
+    try:
+        r = urllib2.urlopen(geturl).read()
+    except urllib2.HTTPError:
+        logging.warning("Could not find the URL -- HTP Error 404 Not Found {}".format(geturl))
+        raise NFL_Schedule_Error("Could not find the URL")
+
     soup = BeautifulSoup(r, 'html.parser')
 
     # Grabs the schedule container
@@ -65,9 +73,14 @@ def get_schedule_soup(year, week, season_type = 2):
                 score = all_cols[2].find('a').text
                 try:
                     team_1_score = int( re.search(team_1+' ([0-9]+)', all_cols[2].find('a').text).group(1))
-                    team_2_score = int(re.search(team_2 +' ([0-9]+)', all_cols[2].find('a').text).group(1))
+                    team_2_score = int(re.search(team_2+' ([0-9]+)', all_cols[2].find('a').text).group(1))
+
+                except AttributeError:
+                    # No score was found:
+                    logging.warning('Could not find the score in this link.  Please add it manually.: {}'.format(str(all_cols)))
+                    continue
                 finally:
-                    if '(OT)' in all_cols[2].find('a').text.lower():
+                    if '(ot)' in all_cols[2].find('a').text.lower():
                         OT = 1
                     else:
                         OT = 0
@@ -79,31 +92,73 @@ def get_schedule_soup(year, week, season_type = 2):
 
                 # Change St. Louis
                 if team_1 == 'STL':
-                    team_1 = 'LAR'
+                    team_1 = 'LA'
                 elif team_2 == 'STL':
-                    team_2 = 'LAR'
+                    team_2 = 'LA'
 
                 #
-                games_data.append([int(year), int(season_type), int(week), dateOfGame, int(game_id), team_1, int(team_1_score) , home_text, team_2, int(team_2_score), int(OT)])
+                games_data.append((int(year), int(season_type), int(week), dateOfGame, int(game_id), team_1, int(team_1_score) , home_text, team_2, int(team_2_score), int(OT)))
         else:
             print(date_container.__str__())
 
     print(week,len(games_data))
-
+    return games_data
 import pymysql
 def execute_sql(games_data):
     global creds
-    with open('./mysqlaccess.txt') as f:
+    with open('./mysqlaccess') as f:
         acc = f.read()
         creds = dict([a.split('=') for a in acc.split('\n')])
 
     cxn = pymysql.connect(host=creds['host'], user=creds['user'],
-                        password=creds['pw'])
+                        password=creds['pw'], db='fantasysports')
+    c = cxn.cursor()
+    statement = """
+    CREATE TEMPORARY TABLE IF NOT EXISTS insert_game_table LIKE fantasysports.Game;
+    ALTER TABLE insert_game_table CHANGE COLUMN `homeTeam` `homeTeam` VARCHAR(20) NOT NULL ;
+    ALTER TABLE insert_game_table CHANGE COLUMN `awayTeam` `awayTeam` VARCHAR(20) NOT NULL ;
+
+
+    INSERT INTO fantasysports.insert_game_table (year,season_type, week, gameDate, gameID, awayTeam, awayScore,at_or_vs, homeTeam,homeScore, OT)
+    VALUES                           (%s,    %s,       %s,    %s,      %s,      %s,       %s,       %s,      %s, %s    ,%s);
+
+
+    REPLACE INTO fantasysports.Game (year,season_type, week, gameDate, gameID, homeTeam,homeScore,at_or_vs, awayTeam, awayScore, OT)
+    SELECT year,season_type, week, gameDate, gameID, h.teamID,homeScore,at_or_vs, a.teamID, awayScore, OT
+    FROM insert_game_table
+    left join fantasysports.Team h
+        on h.teamshort = homeTeam
+    left join fantasysports.Team a
+        on a.teamshort = awayTeam;
+
+    """
+    c.executemany(statement, games_data)
 
 
 
-for i in REGULAR_SEASON_WEEKS:
-    get_schedule_soup(2015,i,2)
+for y in range(2010,2017):
+    for rs in REGULAR_SEASON_WEEKS:
+        try:
+            d = get_schedule_soup(y, rs, season_types['regular_season'])
+        except NFL_Schedule_Error:
+            continue
+        print(d)
+        execute_sql(d)
+    for pos in POSTSEASON_WEEKS:
+        try:
+            d = get_schedule_soup(y, pos, season_types['postseason'])
+        except NFL_Schedule_Error:
+            continue
+        print(d)
+        execute_sql(d)
+    for prs in PRESEASON_WEEKS:
+        try:
+            d = get_schedule_soup(y, prs, season_types['preseason'])
+        except NFL_Schedule_Error:
+            continue
+        print(d)
+        execute_sql(d)
+
 
 # print(team_1,home_text,team_2)
 
