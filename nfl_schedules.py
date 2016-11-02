@@ -8,7 +8,6 @@ from bs4 import BeautifulSoup
 import re
 from lxml import etree
 import pandas as pd
-from pip._vendor.distlib import database
 
 from stand_proc import simpconvert_to_str, NFL_Schedule_Error
 from collections import defaultdict
@@ -136,7 +135,7 @@ def execute_sql(games_data):
 
 
 
-for y in range(2010,2017):
+for y in range(2016,2017):
     for rs in REGULAR_SEASON_WEEKS:
         try:
             d = get_schedule_soup(y, rs, season_types['regular_season'])
