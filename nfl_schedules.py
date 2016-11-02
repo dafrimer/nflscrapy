@@ -107,6 +107,7 @@ def execute_sql(games_data):
     global creds
     with open('./mysqlaccess') as f:
         acc = f.read()
+        acc = acc.strip()
         creds = dict([a.split('=') for a in acc.split('\n')])
 
     cxn = pymysql.connect(host=creds['host'], user=creds['user'],
