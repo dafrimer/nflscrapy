@@ -46,7 +46,8 @@ def get_schedule_soup(year, week, season_type = 2):
     date_containers = schedule_container.find_all('div', class_='responsive-table-wrap')
     games_data = []
     for date_container in date_containers:
-
+        if date_container.find('th') is None:
+            continue
 
         if date_container.find('th').text.lower() == 'bye':
             # add the bye weeks to a list
@@ -104,6 +105,8 @@ def get_schedule_soup(year, week, season_type = 2):
     return games_data
 import pymysql
 def execute_sql(games_data):
+    if games_data is None or len(games_data) ==0:
+        return
     global creds
     with open('./mysqlaccess') as f:
         acc = f.read()
@@ -113,16 +116,19 @@ def execute_sql(games_data):
     cxn = pymysql.connect(host=creds['host'], user=creds['user'],
                         password=creds['pw'], db='fantasysports')
     c = cxn.cursor()
-    statement = """
+    tempstatement = """
     CREATE TEMPORARY TABLE IF NOT EXISTS insert_game_table LIKE fantasysports.Game;
     ALTER TABLE insert_game_table CHANGE COLUMN `homeTeam` `homeTeam` VARCHAR(20) NOT NULL ;
     ALTER TABLE insert_game_table CHANGE COLUMN `awayTeam` `awayTeam` VARCHAR(20) NOT NULL ;
 
 
     INSERT INTO fantasysports.insert_game_table (year,season_type, week, gameDate, gameID, awayTeam, awayScore,at_or_vs, homeTeam,homeScore, OT)
-    VALUES                           (%s,    %s,       %s,    %s,      %s,      %s,       %s,       %s,      %s, %s    ,%s);
+    VALUES                                      (%s,    %s,       %s,    %s,      %s,      %s,       %s,       %s,      %s          , %s    ,%s);
 
-
+    """
+    print(c.executemany(tempstatement, games_data))
+    print(games_data)
+    statement="""
     REPLACE INTO fantasysports.Game (year,season_type, week, gameDate, gameID, homeTeam,homeScore,at_or_vs, awayTeam, awayScore, OT)
     SELECT year,season_type, week, gameDate, gameID, h.teamID,homeScore,at_or_vs, a.teamID, awayScore, OT
     FROM insert_game_table
@@ -131,8 +137,10 @@ def execute_sql(games_data):
     left join fantasysports.Team a
         on a.teamshort = awayTeam;
 
+    DROP TABLE IF EXISTS insert_game_table
     """
-    c.executemany(statement, games_data)
+    c.execute(statement)
+
 
 
 
@@ -142,21 +150,22 @@ for y in range(2016,2017):
             d = get_schedule_soup(y, rs, season_types['regular_season'])
         except NFL_Schedule_Error:
             continue
-        print(d)
+        #print(d)
+        print("Moving to sql")
         execute_sql(d)
     for pos in POSTSEASON_WEEKS:
         try:
             d = get_schedule_soup(y, pos, season_types['postseason'])
         except NFL_Schedule_Error:
             continue
-        print(d)
+        #print(d)
         execute_sql(d)
     for prs in PRESEASON_WEEKS:
         try:
             d = get_schedule_soup(y, prs, season_types['preseason'])
         except NFL_Schedule_Error:
             continue
-        print(d)
+        #print(d)
         execute_sql(d)
 
 
