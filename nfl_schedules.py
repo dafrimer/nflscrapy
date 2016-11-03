@@ -143,11 +143,11 @@ def execute_sql(games_data):
 
 
 
+def update_games(year):
 
-for y in range(2016,2017):
     for rs in REGULAR_SEASON_WEEKS:
         try:
-            d = get_schedule_soup(y, rs, season_types['regular_season'])
+            d = get_schedule_soup(year, rs, season_types['regular_season'])
         except NFL_Schedule_Error:
             continue
         #print(d)
@@ -155,14 +155,14 @@ for y in range(2016,2017):
         execute_sql(d)
     for pos in POSTSEASON_WEEKS:
         try:
-            d = get_schedule_soup(y, pos, season_types['postseason'])
+            d = get_schedule_soup(year, pos, season_types['postseason'])
         except NFL_Schedule_Error:
             continue
         #print(d)
         execute_sql(d)
     for prs in PRESEASON_WEEKS:
         try:
-            d = get_schedule_soup(y, prs, season_types['preseason'])
+            d = get_schedule_soup(year, prs, season_types['preseason'])
         except NFL_Schedule_Error:
             continue
         #print(d)
