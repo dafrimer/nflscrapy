@@ -1,5 +1,5 @@
 from bs4 import BeautifulSoup
-import urllib2
+import urllib
 import re
 from datetime import  datetime
 position_abbrvs = {
@@ -70,7 +70,7 @@ class Player(object):
     def scrapePlayerInfo(self, player_url):
 
         self.playerURL = player_url
-        soup = BeautifulSoup(urllib2.urlopen(player_url).read(), 'html.parser')
+        soup = BeautifulSoup(urllib.request.urlopen(player_url).read(), 'html.parser')
 
         self.playerID = self.scrapeID_fromURL(player_url)
 

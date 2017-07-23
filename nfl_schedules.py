@@ -3,7 +3,7 @@ from __future__ import print_function
 # http://www.espn.com/nfl/schedule
 
 import logging
-import urllib2
+import urllib
 from bs4 import BeautifulSoup
 import re
 from lxml import etree
@@ -32,8 +32,8 @@ def get_schedule_soup(year, week, season_type = 2):
 
     geturl = 'http://www.espn.com/nfl/schedule/_/seasontype/{season_type}/year/{year}/week/{week}'.format(**{'year':year,'week':week,'season_type':season_type})
     try:
-        r = urllib2.urlopen(geturl).read()
-    except urllib2.HTTPError:
+        r = urllib.request.urlopen(geturl).read()
+    except urllib.request.HTTPError:
         logging.warning("Could not find the URL -- HTP Error 404 Not Found {}".format(geturl))
         raise NFL_Schedule_Error("Could not find the URL")
 
@@ -65,9 +65,11 @@ def get_schedule_soup(year, week, season_type = 2):
             all_schedule_games = date_container.find('tbody').find_all('tr')
             for matchup in all_schedule_games:
                 all_cols = matchup.find_all('td')
-
+                if len(all_cols) < 3:
+                    # Wild card play offs
+                    continue
                 team_1 = all_cols[0].find('abbr').text
-                home_text = matchup.find('td', class_='home')['data-home-text']
+                home_text = matchup.find('div', class_='home-wrapper')['data-home-text']
                 team_2 = all_cols[1].find('abbr').text
 
                 score = all_cols[2].find('a').text
@@ -150,27 +152,27 @@ def update_games(year):
             d = get_schedule_soup(year, rs, season_types['regular_season'])
         except NFL_Schedule_Error:
             continue
-        #print(d)
+        print(d)
         print("Moving to sql")
-        execute_sql(d)
+        #execute_sql(d)
     for pos in POSTSEASON_WEEKS:
         try:
             d = get_schedule_soup(year, pos, season_types['postseason'])
         except NFL_Schedule_Error:
             continue
-        #print(d)
-        execute_sql(d)
+        print(d)
+        #execute_sql(d)
     for prs in PRESEASON_WEEKS:
         try:
             d = get_schedule_soup(year, prs, season_types['preseason'])
         except NFL_Schedule_Error:
             continue
-        #print(d)
-        execute_sql(d)
+        print(d)
+        #execute_sql(d)
 
 
 # print(team_1,home_text,team_2)
 
 
-
+update_games(2016)
 

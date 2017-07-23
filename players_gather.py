@@ -1,7 +1,7 @@
 
 
 
-import urllib2
+import urllib
 from bs4 import BeautifulSoup
 import re
 from lxml import etree
@@ -14,7 +14,7 @@ START_YEAR = 2015
 STATISTIC = stat[0]
 
 MAIN_STAT_PAGE = "http://www.espn.com/nfl/statistics/player/_/stat/{statistic}/year/{year}/".format(statistic=STATISTIC,year=START_YEAR)
-r = urllib2.urlopen(MAIN_STAT_PAGE).read()
+r = urllib.request.urlopen(MAIN_STAT_PAGE).read()
 
 main_soup = BeautifulSoup(r,'html.parser')
 current_soup = main_soup
@@ -24,7 +24,7 @@ def simpconvert_to_str(val):
     try:
         return str(val)
     except UnicodeEncodeError:
-        return e.text.encode('ascii', 'ignore')
+        return val.text.encode('ascii', 'ignore')
 
 def get_tag_attribute(tagval,attrb):
     att_val = tagval.attrs[attrb]
@@ -119,7 +119,7 @@ def get_player_data(player_row):
 def read_all_stats(STATISTIC, START_YEAR):
     MAIN_STAT_PAGE = "http://www.espn.com/nfl/statistics/player/_/stat/{statistic}/year/{year}/".format(\
         statistic=STATISTIC, year=START_YEAR)
-    r = urllib2.urlopen(MAIN_STAT_PAGE).read()
+    r = urllib.request.urlopen(MAIN_STAT_PAGE).read()
 
     soup = BeautifulSoup(r, 'html.parser')
     current_soup = soup
@@ -135,7 +135,7 @@ def read_all_stats(STATISTIC, START_YEAR):
 
     #ONCE ROWS HAVE BEEN READ.  YOU NEED TO GO TO THE NEXT PAGE
 
-
+    all_players = []
     table_rows = []
     while 1==1:
         r = re.compile('(\d{1,3}) of (\d{1,3})')
@@ -148,12 +148,12 @@ def read_all_stats(STATISTIC, START_YEAR):
             player_col = player_row.find_all('td')[all_columns.index('PLAYER')]
             p = nfl_classes.Player()
             p.scrapePlayerInfo(player_col.find('a').attrs['href'])
-            print vars(p)
+            print(vars(p))
+
+        all_players.append(vars(p))
 
 
-
-        next_link = current_soup.find('div', class_='jcarousel-next').parent.attrs["href"]
-        print matches.group(0)
+        print(matches.group(0))
         #####THE CHECK FOR THE END##########
         if matches.group(1) == matches.group(2):
             break
@@ -162,11 +162,13 @@ def read_all_stats(STATISTIC, START_YEAR):
         try:
             next_link = current_soup.find('div', class_='jcarousel-next').parent.attrs["href"]
             if 'http:' in next_link:
-                current_soup = BeautifulSoup(urllib2.urlopen(next_link).read())
+                current_soup = BeautifulSoup(urllib.request.urlopen(next_link).read())
             else:
-                current_soup = BeautifulSoup(urllib2.urlopen('http:' + next_link).read(),'html.parser')
+                current_soup = BeautifulSoup(urllib.request.urlopen('http:' + next_link).read(),'html.parser')
         except KeyError:
             break
+
+    return all_players
 
 
 
@@ -177,7 +179,7 @@ def read_player_page(player_link_url):
 
 
 
-read_all_stats('passing','2015')
+#read_all_stats('passing','2015')
 
 
 

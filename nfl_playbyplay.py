@@ -1,5 +1,5 @@
 import logging
-import urllib2
+import urllib
 from bs4 import BeautifulSoup
 import re
 from lxml import etree
@@ -29,8 +29,8 @@ def clear_doublespaces(text):
 def get_gameplay_soup(gameid):
     geturl = 'http://www.espn.com/nfl/playbyplay?gameId={}'.format(gameid)
     try:
-        r = urllib2.urlopen(geturl).read()
-    except urllib2.HTTPError:
+        r = urllib.request.urlopen(geturl).read()
+    except urllib.request.HTTPError:
         logging.warning("Could not find the URL -- HTP Error 404 Not Found {}".format(geturl))
         raise NFL_Schedule_Error("Could not find the URL")
 
